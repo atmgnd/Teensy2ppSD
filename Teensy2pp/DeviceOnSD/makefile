@@ -21,7 +21,7 @@ TARGET       = DeviceOnSD
 SRC          = $(TARGET).c Descriptors.c Lib/SCSI.c  Lib/diskio.c Lib/ff.c Lib/mmc_avr_spi.c Lib/cfc_avr.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS) \
     ini.c
   
-LUFA_PATH    = ../../../LUFA
+LUFA_PATH    = ../../lufa/LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =
 
