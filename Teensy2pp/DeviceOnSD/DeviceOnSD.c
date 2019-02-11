@@ -125,23 +125,9 @@ static FILE USBSerialStream;
 
 #define DEBUG
 #ifdef DEBUG
-
-typedef enum {
-	DL_OK,
-	DL_NODISK,
-	DL_MOUNT,
-	DL_OPEN,
-	DL_SIZE,
-	DL_INI,
-} DLVALUE;
-
-static uint8_t dlvalue = DL_OK;
-
-#define DEBUG_SETONCE(x) do{if(!dlvalue)dlvalue = x; }while(0)
-#define DEBUG_CHECK_AND_PRINT do{if(dlvalue) fprintf(&USBSerialStream, "error, dlvalue is %d\r\n", (int)dlvalue);}while(0)
+#define DEBUG_HANG
 #else
-#define DEBUG_SETONCE(x) for (;;)
-#define DEBUG_CHECK_AND_PRINT
+#define DEBUG_HANG for(;;)
 #endif
 
 static uint16_t Timer7 = 0;
@@ -153,20 +139,9 @@ ISR(TIMER0_COMPA_vect)
 	if (n) Timer7 = --n;
 
 	disk_timerproc();
-
-	DEBUG_CHECK_AND_PRINT;
 }
 
 uint32_t media_blocks = 0;
-
-enum MODINID
-{
-	MOD_RAWSTORAGE,
-};
-
-uint8_t whh_config = 0;
-#define MOD_BIT_TEST(x) ((whh_config) & (1<<(x)))
-#define MOD_BIT_SET(x, p) do{(whh_config |= ( p << (x)));}while(0)
 
 static int ini_cb(void* user, const char* section, const char* name,
 	const char* value)
@@ -175,10 +150,12 @@ static int ini_cb(void* user, const char* section, const char* name,
 	uint8_t enabled = (atoi(value) == 1);
 
 #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
-	if (MATCH(_s, "raw")) {
-		MOD_BIT_SET(MOD_RAWSTORAGE, enabled);
+	if (MATCH(_s, "raw"))
+	{
+		RawStorage = (enabled == 1);
 	}
-	else {
+	else
+	{
 		return 0;  /* unknown section/name, error */
 	}
 	return 1;
@@ -205,31 +182,30 @@ int main(void)
 	fr = f_mount(&FatFs, "", 1);
 	if (fr)
 	{
-		DEBUG_SETONCE(DL_MOUNT);
+		DEBUG_HANG;
 	}
 
 	/* dump ini config */
 
-	if (ini_parse("wahaha.ini", ini_cb, &whh_config) < 0 || MOD_BIT_TEST(MOD_RAWSTORAGE)) {
+	if (ini_parse("wahaha.ini", ini_cb, NULL) < 0 ) {
 		RawStorage = 1;
 		if (mmc_disk_ioctl(GET_SECTOR_COUNT, &media_blocks) != RES_OK || media_blocks == 0) {
-			DEBUG_SETONCE(DL_SIZE);
+			DEBUG_HANG;
 		}
 	}
-	else
+	else if(!RawStorage)
 	{
 		/* udisk setup */
 		fr = f_open(&MassStorage_Loopback, "udisk.txt", FA_READ | FA_WRITE | FA_OPEN_ALWAYS);
 		if (fr)
 		{
-			DEBUG_SETONCE(DL_OPEN);
+			DEBUG_HANG;
 		}
 		else
 		{
 			media_blocks = 262144;
 		}
 	}
-
 
 	/* Create a regular character stream for the interface so that it can be used with the stdio.h functions */
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
@@ -238,15 +214,8 @@ int main(void)
 	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 	GlobalInterruptEnable();
 
-	Timer7 = 500;
 	for (;;)
 	{
-		if (Timer7 == 0)
-		{
-			fprintf(&USBSerialStream, "config: %d\r\n", (int)whh_config);
-			Timer7 = 0;
-		}
-
 		while(CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface))
 		{
 			int c = fgetc(&USBSerialStream);
