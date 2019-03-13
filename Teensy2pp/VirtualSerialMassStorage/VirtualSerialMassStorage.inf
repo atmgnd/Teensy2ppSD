@@ -4,7 +4,7 @@
 ;************************************************************
 
 [DefaultInstall]
-CopyINF="LUFA VirtualSerialMassStorage.inf"
+CopyINF="VirtualSerialMassStorage.inf"
 
 [Version]
 Signature="$Windows NT$"
@@ -62,5 +62,5 @@ HKR,,EnumPropPages32,,"msports.dll,SerialPortPropPageProvider"
 ;Modify these strings to customize your device
 ;------------------------------------------------------------------------------
 [Strings]
-MFGNAME="http://www.lufa-lib.org"
-DESCRIPTION="LUFA CDC-ACM Virtual Serial Port"
+MFGNAME="http://www.wahaha.com"
+DESCRIPTION="WAHAHA CDC-ACM Virtual Serial Port"

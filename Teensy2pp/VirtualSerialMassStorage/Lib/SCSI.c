@@ -424,7 +424,7 @@ void MMC_WriteBlocks2(USB_ClassInfo_MS_Device_t* const MSInterfaceInfo,
 		Endpoint_ClearOUT();
 }
 
-
+int8_t is_disk_read_only = 1;
 /** Command processing for an issued SCSI READ (10) or WRITE (10) command. This command reads in the block start address
  *  and total number of blocks to process, then calls the appropriate low-level Dataflash routine to handle the actual
  *  reading and writing of the data.

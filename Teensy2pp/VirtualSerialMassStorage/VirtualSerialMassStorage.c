@@ -108,23 +108,35 @@ uint32_t media_blocks = 0;
  *  used like any regular character stream in the C APIs.
  */
 static FILE USBSerialStream;
+extern int8_t is_disk_read_only;
 
+#include <avr/eeprom.h> 
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
 int main(void)
 {
+	int cc_index = 0;
 	/* Start 100Hz system timer with TC0 */
 	OCR0A = F_CPU / 1024 / 100 - 1;
 	TCCR0A = _BV(WGM01);
 	TCCR0B = 0b101;
 	TIMSK0 = _BV(OCIE0A);
 
+	DDRD |= (1 << 6); /* config led */
+
 	sei();
+
+	if (eeprom_read_byte((uint8_t*)46) != 0)
+	{
+		is_disk_read_only = 0;
+		eeprom_write_byte((uint8_t*)46, 0);
+	}
 
 	SetupHardware();
 
 	if (mmc_disk_ioctl(GET_SECTOR_COUNT, &media_blocks) != RES_OK || media_blocks == 0) {
+		PORTD |= (1 << 6);
 		for (;;) {};
 	}
 
@@ -135,17 +147,42 @@ int main(void)
 
 	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 	GlobalInterruptEnable();
-
 	Timer7 = 200;
 	for (;;)
 	{
 		if (Timer7 == 0)
 		{
-			fputs("test serial print\r\n", &USBSerialStream);
+			if (is_disk_read_only)
+			{
+				fputs("readonly\r\n", &USBSerialStream);
+			}
+			else
+			{
+				fputs("keyi write\r\n", &USBSerialStream);
+			}
+
+			PORTD ^= (1 << 6); /* switch led */
+
 			Timer7 = 200;
 		}
 		/* Must throw away unused bytes from the host, or it will lock up while waiting for the device */
-		CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		// CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		while (CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface))
+		{
+			int c = fgetc(&USBSerialStream);
+			if (c == "qwer"[cc_index ] && ++cc_index == 4)
+			{
+				cc_index = 0;
+				is_disk_read_only = !is_disk_read_only;
+				fputs("keyi write on next boot\r\n", &USBSerialStream);
+
+				if (eeprom_read_byte((uint8_t*)46) == 0)
+				{
+					eeprom_write_byte((uint8_t*)46, 1);
+				}
+
+			}
+		}
 
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 		MS_Device_USBTask(&Disk_MS_Interface);
@@ -184,6 +221,7 @@ void SetupHardware(void)
 	if ((mmc_disk_status() & STA_NOINIT))
 	{
 		LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
+		PORTD |= (1 << 6);
 		for(;;);
 	}
 }
