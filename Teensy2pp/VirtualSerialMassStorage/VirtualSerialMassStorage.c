@@ -170,17 +170,23 @@ int main(void)
 		while (CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface))
 		{
 			int c = fgetc(&USBSerialStream);
-			if (c == "qwer"[cc_index ] && ++cc_index == 4)
+			if (c == "qwef"[cc_index ])
+			{
+				if (++cc_index == 4)
+				{
+					cc_index = 0;
+					is_disk_read_only = !is_disk_read_only;
+					fputs("keyi write on next boot\r\n", &USBSerialStream);
+
+					if (eeprom_read_byte((uint8_t*)46) == 0)
+					{
+						eeprom_write_byte((uint8_t*)46, 1);
+					}
+				}
+			}
+			else
 			{
 				cc_index = 0;
-				is_disk_read_only = !is_disk_read_only;
-				fputs("keyi write on next boot\r\n", &USBSerialStream);
-
-				if (eeprom_read_byte((uint8_t*)46) == 0)
-				{
-					eeprom_write_byte((uint8_t*)46, 1);
-				}
-
 			}
 		}
 
